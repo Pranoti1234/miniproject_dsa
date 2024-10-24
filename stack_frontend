@@ -1,0 +1,185 @@
+//frontend part for stack application
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.util.HashMap;
+
+public class frontend {
+    private JFrame frame;
+    private JButton forwardButton;
+    private JButton backButton;
+    private JButton addButton;
+    private JButton deleteButton;
+    private JLabel currentDirectoryLabel;
+    private JLabel currentPathLabel; // JLabel for displaying the current path
+    private stk directoryStack; // Stack for tracking directories
+    private DefaultListModel<String> listModel;
+    private JList<String> directoryList;
+
+    // Dynamic directory storage: Each directory will have its own list of
+    // subdirectories
+    private HashMap<String, DefaultListModel<String>> directoryMap;
+
+    public frontend() {
+        directoryStack = new stk();
+        directoryMap = new HashMap<>(); // Initialize the dynamic directory map
+
+        // Initialize the root directory with some predefined subdirectories
+        DefaultListModel<String> rootDirectories = new DefaultListModel<>();
+        rootDirectories.addElement("Documents");
+        rootDirectories.addElement("Downloads");
+        rootDirectories.addElement("Pictures");
+        directoryMap.put("root", rootDirectories); // Store this in the map
+
+        frame = new JFrame("Nested Directory Navigation");
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setSize(500, 300);
+        frame.setResizable(false);
+        frame.getContentPane().setBackground(new Color(240, 240, 240)); // Light background color
+
+        JPanel panel = new JPanel();
+        panel.setBackground(new Color(240, 240, 240)); // Match panel background with frame
+        panel.setLayout(new BorderLayout());
+        frame.add(panel);
+
+        placeComponents(panel);
+
+        frame.setVisible(true);
+        frame.setLocationRelativeTo(null); // Center the frame on the screen
+    }
+
+    private void placeComponents(JPanel panel) {
+        // Current Directory Label
+        currentDirectoryLabel = new JLabel("Current Directory: root");
+        currentDirectoryLabel.setFont(new Font("Arial", Font.BOLD, 16));
+        panel.add(currentDirectoryLabel, BorderLayout.NORTH);
+
+        // Directory List
+        listModel = new DefaultListModel<>();
+        directoryList = new JList<>(listModel);
+        updateDirectoryList();
+        panel.add(new JScrollPane(directoryList), BorderLayout.CENTER);
+
+        // Button Panel
+        JPanel buttonPanel = new JPanel();
+        buttonPanel.setLayout(new FlowLayout());
+
+        forwardButton = new JButton("Next");
+        backButton = new JButton("Previous");
+        addButton = new JButton("Add Directory");
+        deleteButton = new JButton("Delete Directory");
+
+        // Add the path label just above the buttons
+        currentPathLabel = new JLabel("Current Path: root");
+        currentPathLabel.setFont(new Font("Arial", Font.ITALIC, 12));
+        currentPathLabel.setPreferredSize(new Dimension(480, 30)); // Small height for max 2 lines
+        panel.add(currentPathLabel, BorderLayout.SOUTH);
+
+        buttonPanel.add(backButton);
+        buttonPanel.add(forwardButton);
+        buttonPanel.add(addButton);
+        buttonPanel.add(deleteButton);
+        panel.add(buttonPanel, BorderLayout.SOUTH);
+
+        // Action listeners
+        forwardButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                String selectedDirectory = directoryList.getSelectedValue();
+                if (selectedDirectory != null) {
+                    directoryStack.pushDirectory(selectedDirectory); // Move to the next directory
+                    updateCurrentDirectory();
+                    updateDirectoryList();
+                    updateCurrentPath(); // Update the path label
+                }
+            }
+        });
+
+        backButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                directoryStack.popDirectory(); // Move back to the previous directory
+                updateCurrentDirectory();
+                updateDirectoryList();
+                updateCurrentPath(); // Update the path label
+            }
+        });
+
+        addButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                String directoryName = JOptionPane.showInputDialog("Enter directory name:");
+
+                // Check if the directory name is blank or null
+                if (directoryName == null || directoryName.trim().isEmpty()) {
+                    JOptionPane.showMessageDialog(frame, "Directory name cannot be empty.", "Error",
+                            JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+
+                String currentDir = directoryStack.getCurrentDirectory();
+                DefaultListModel<String> currentDirectoryList = directoryMap.get(currentDir);
+
+                // Initialize the directory list if it doesn't exist
+                if (currentDirectoryList == null) {
+                    currentDirectoryList = new DefaultListModel<>();
+                    directoryMap.put(currentDir, currentDirectoryList);
+                }
+
+                // Check for duplicate directory names
+                if (currentDirectoryList.contains(directoryName)) {
+                    JOptionPane.showMessageDialog(frame, "Directory already exists.", "Error",
+                            JOptionPane.ERROR_MESSAGE);
+                } else {
+                    currentDirectoryList.addElement(directoryName); // Add the new directory
+                    updateDirectoryList(); // Refresh the list in the UI
+                }
+            }
+        });
+
+        deleteButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                String selectedDirectory = directoryList.getSelectedValue();
+                if (selectedDirectory != null) {
+                    String currentDir = directoryStack.getCurrentDirectory();
+                    DefaultListModel<String> currentDirectoryList = directoryMap.get(currentDir);
+
+                    if (currentDirectoryList != null) {
+                        currentDirectoryList.removeElement(selectedDirectory); // Remove the selected directory
+                        updateDirectoryList(); // Refresh the list in the UI
+                    }
+                } else {
+                    JOptionPane.showMessageDialog(frame, "Please select a directory to delete.");
+                }
+            }
+        });
+    }
+
+    private void updateCurrentDirectory() {
+        currentDirectoryLabel.setText("Current Directory: " + directoryStack.getCurrentDirectory());
+    }
+
+    private void updateCurrentPath() {
+        currentPathLabel.setText("Current Path: " + directoryStack.printStack()); // Call printPath from stk
+    }
+
+    private void updateDirectoryList() {
+        listModel.clear();
+        String currentDir = directoryStack.getCurrentDirectory();
+
+        // Get the list of directories for the current directory
+        DefaultListModel<String> currentDirectoryList = directoryMap.get(currentDir);
+
+        if (currentDirectoryList != null) {
+            for (int i = 0; i < currentDirectoryList.getSize(); i++) {
+                listModel.addElement(currentDirectoryList.getElementAt(i));
+            }
+        }
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> new frontend());
+    }
+}
